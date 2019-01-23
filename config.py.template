@@ -1,0 +1,27 @@
+STUDENTS_FILE = "students.json"
+"""
+To generate a GitHub token, go to https://github.com/settings/tokens and check
+"repo" and "read:org" (under "admin:org")
+"""
+GITHUB_TOKEN = ""
+GITHUB_API = "https://api.github.com/graphql"
+# Name of the organization with all the problem sets
+ORGANIZATION = ""
+
+"""
+To generate a canvas token, go to your account settings on canvas, scroll to
+the bottom, and click "New Access Token"
+"""
+CANVAS_TOKEN = ""
+CANVAS_PREFIX = ""
+CANVAS_COURSE_NUM = ""
+CANVAS_API = "https://{}.instructure.com/api/v1/courses/{}/".format(CANVAS_PREFIX, CANVAS_COURSE_NUM)
+
+GOOD_JOB = [
+    'Good job!',
+    'Great work!',
+    'Nice job!',
+    'Looks good!',
+    'Nice work!',
+    'Good work!'
+]
