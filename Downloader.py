@@ -48,7 +48,7 @@ class Downloader:
                             print(repo['name'], "already exists. Pulling changes...")
                             subprocess.call(['git', 'pull'])
                             subprocess.call(['git', 'reset', '--hard', 'origin/master'])
-                            subprocess.call(['git', 'clean', '-f', '-d'])
+                            subprocess.call(['git', 'clean', '-f', '-d', '-x'])
                     except OSError:
                         print("Cloning {}...".format(repo['name']))
                         subprocess.call(['git', 'clone', repo['sshUrl']])

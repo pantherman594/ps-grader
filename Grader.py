@@ -153,22 +153,24 @@ class Grader:
 
                 grades = {}
 
-                print()
-                print("Assignment: {} ({})".format(assignment_name, assignment_id))
-                print()
                 for repo in self.downloader.repositories:
                     try:
                         with cd("./{}".format(repo['name'])):
-                            grader = PSGrader.Grader()
+                            # Clear terminal screen
+                            print('\x1b[2J\x1b[H')
+
+                            print("Assignment: {} ({})".format(assignment_name, assignment_id))
+                            print("Grading: {}".format(repo['name']))
+                            print()
+                            grader = PSGrader.Grader(repo)
+                            print(grader.get_output())
                     except OSError:
                         raise Exception("Directory did not exist, did repositories download?")
 
                     self.input_feedback(repo, max_points, grades)
-                    grader.cleanup()
 
-                    print()
-                    print("=======================")
-                    print()
+                    # Kill the grader process, if it's still running
+                    grader.cleanup()
         except OSError:
             raise
         return grades
