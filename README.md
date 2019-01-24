@@ -8,11 +8,11 @@ Copy `config.py.template` to `config.py` and fill in the required values.
 
 ## Usage
 
-Run `python3 Grader.py <problem set number> "[additional filters]"`
+Run `python3 Grader.py <problem set number> [additional filters]`
 
 The search string is, by default, `ps{num}-`
 
-Additional filters is a regex string that is appended to the search string.
+Additional filters is an optional regex string that is appended to the search string.
 
 
 ## Graders
