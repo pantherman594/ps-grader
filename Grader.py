@@ -16,10 +16,11 @@ class Grader:
         self.downloader = Downloader(pset_num, additional_filters)
         self.students = Students(self.downloader.usernames)
         self.assignment = self.get_assignment()
+        self.overwrite = None
 
-        grades = self.grade_psets()
+        self.grade_psets()
         print("Look over grades before submitting:")
-        for canvas_id, data in grades.items():
+        for canvas_id, data in self.grades.items():
             grade = data['grade']
             comments = data['comments']
             print(canvas_id)
@@ -28,20 +29,46 @@ class Grader:
             print()
 
         if self.input_submit():
-            for canvas_id, data in grades.items():
+            for canvas_id, data in self.grades.items():
                 grade = data['grade']
                 comments = data['comments']
                 self.upload_grade(canvas_id, grade, comments)
 
     def input_submit(self):
-        ready = input("Are you ready to submit? [y/N] ").lower()
-        if ready == "y":
+        ready = input("Are you ready to submit? [y/n] ").lower()
+        if ready == "y" and self.input_confirm() is True:
             return True
-        elif ready == "n":
+        elif ready == "n" and self.input_confirm() is True:
             print("Submission cancelled. Quitting..")
             raise SystemExit
 
+        if ready != "y" and ready != "n":
+            print("Please pick one.")
         return self.input_submit()
+
+    def input_confirm(self):
+        confirm = input("Are you sure? [y/n] ").lower()
+        if confirm == "y":
+            return True
+        elif confirm == "n":
+            return False
+
+        print("Please pick one.")
+        return self.input_confirm()
+
+    def get_grade(self, canvas_id):
+        auth_header = {'Authorization': 'Bearer {}'.format(config.CANVAS_TOKEN)}
+        r = requests.get(url="{}assignments/{}/submissions/{}".format(config.CANVAS_API, self.assignment['id'], canvas_id), headers=auth_header)
+
+        if r.status_code is not 200:
+            print("Request errored.")
+            raise SystemExit
+
+        data = json.loads(r.text)
+
+        if data['workflow_state'] != "graded":
+            return None
+        return data['entered_grade']
 
     def upload_grade(self, canvas_id, grade, comments):
         auth_header = {'Authorization': 'Bearer {}'.format(config.CANVAS_TOKEN)}
@@ -83,18 +110,31 @@ class Grader:
 
         return data[last_pset_index]
 
-    def store_grades(self, grades, repo, grade, comments):
-        for collaborator in repo['collaborators']:
-            if collaborator['login'] in self.students.students:
-                student = self.students.students[collaborator['login']]['id']
-                grades[student] = {'grade': grade,
-                                   'comments': comments}
-            else:
-                print("Unable to save because this student hasn't been matched to Canvas.")
+    def input_feedback(self, student_ids, max_points, prev_grade):
+        already_received = "This student has already received a {}. Do you wish to overwrite that?".format(prev_grade)
+        if prev_grade is None:
+            is_graded = False
+            ready = input("Do you wish to submit feedback? [Y/n] ").lower()
+        elif self.overwrite is True:
+            is_graded = False
+            ready = input("{} [Y/n] ".format(already_received)).lower()
+        else:
+            is_graded = True
+            ready = input("{} [y/N/all/none] ".format(already_received)).lower()
 
-    def input_feedback(self, repo, max_points, grades):
-        ready = input("Do you wish to submit feedback? [Y/n] ").lower()
-        if ready == "y" or ready == "":
+        if ready == "":
+            if is_graded:
+                ready = "n"
+            else:
+                ready = "y"
+        elif ready == "all":
+            ready = "y"
+            self.overwrite = True
+        elif ready == "none":
+            ready = "n"
+            self.overwrite = False
+
+        if ready == "y":
             grade = self.input_grade(max_points)
             if grade == max_points:
                 comments = self.input_comments(random.choice(config.GOOD_JOB))
@@ -103,9 +143,13 @@ class Grader:
 
             confirm = input("Does the above look OK? [Y/n] ").lower()
             if confirm == "y" or confirm == "":
-                self.store_grades(grades, repo, grade, comments)
+                for student_id in student_ids:
+                    self.grades[student_id] = {'grade': grade,
+                                               'comments': comments}
             else:
-                self.input_feedback(repo, max_points, grades)
+                self.input_feedback(student_ids, max_points, prev_grade)
+        elif ready != "n":
+            self.input_feedback(student_ids, max_points, prev_grade)
 
     def input_grade(self, max_points):
         grade = input("Grade (out of {}): ".format(max_points))
@@ -151,29 +195,50 @@ class Grader:
                 assignment_id = self.assignment['id']
                 max_points = int(self.assignment['points_possible'])
 
-                grades = {}
+                self.grades = {}
 
                 for repo in self.downloader.repositories:
+                    # Clear terminal screen
+                    print('\x1b[2J\x1b[H')
+
+                    print('=' * 50)
+                    print()
+                    print("Assignment: {} ({})".format(assignment_name, assignment_id))
+                    print("Grading: {}".format(repo['name']))
+                    print()
+
+                    student_ids = []
+                    for collaborator in repo['collaborators']:
+                        if collaborator['login'] in self.students.students:
+                            student_ids.append(self.students.students[collaborator['login']]['id'])
+                        else:
+                            print("Unable to give feedback to {} because this student hasn't been matched to Canvas.".format(collaborator['login']))
+                            input("Press ENTER to continue.")
+
+                    if len(student_ids) is 0:
+                        if len(repo['collaborators']) is not 1:
+                            print("No gradeable students found.")
+                            input("Press ENTER to continue.")
+                        continue
+
+                    prev_grade = self.get_grade(student_ids[0])
+
+                    if prev_grade is not None and self.overwrite is False:
+                        continue
+
                     try:
                         with cd("./{}".format(repo['name'])):
-                            # Clear terminal screen
-                            print('\x1b[2J\x1b[H')
-
-                            print("Assignment: {} ({})".format(assignment_name, assignment_id))
-                            print("Grading: {}".format(repo['name']))
-                            print()
                             grader = PSGrader.Grader(repo)
                             print(grader.get_output())
                     except OSError:
                         raise Exception("Directory did not exist, did repositories download?")
 
-                    self.input_feedback(repo, max_points, grades)
+                    self.input_feedback(student_ids, max_points, prev_grade)
 
                     # Kill the grader process, if it's still running
                     grader.cleanup()
         except OSError:
             raise
-        return grades
 
 
 class cd:

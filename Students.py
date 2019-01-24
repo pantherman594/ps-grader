@@ -23,6 +23,13 @@ class Students:
 
         canvas_students = {row['id']: False for row in gradeable_students.values()}
 
+        to_delete = []
+        for username, student in self.students.items():
+            if student['id'] not in canvas_students:
+                to_delete.append(username)
+        for username in to_delete:
+            del self.students[username]
+
         for user, data in self.students.items():
             canvas_students[data['id']] = True
 
