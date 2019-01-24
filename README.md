@@ -8,6 +8,12 @@ Copy `config.py.template` to `config.py` and fill in the required values.
 
 ## Usage
 
+Install editdistance with
+
+```
+pip install editdistance
+```
+
 Run `python3 Grader.py <problem set number> [additional filters]`
 
 The search string is, by default, `ps{num}-`

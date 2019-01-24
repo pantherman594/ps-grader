@@ -19,6 +19,10 @@ class Grader:
         self.overwrite = None
 
         self.grade_psets()
+        if len(self.grades) is 0:
+            print("No grades submitted. Goodbye!")
+            raise SystemExit
+
         print("Look over grades before submitting:")
         for canvas_id, data in self.grades.items():
             grade = data['grade']
