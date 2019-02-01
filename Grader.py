@@ -114,7 +114,7 @@ class Grader:
 
         return data[last_pset_index]
 
-    def input_feedback(self, student_ids, max_points, prev_grade):
+    def input_feedback(self, student_ids, max_points, suggested, prev_grade):
         already_received = "This student has already received a {}. Do you wish to overwrite that?".format(prev_grade)
         if prev_grade is None:
             is_graded = False
@@ -139,7 +139,7 @@ class Grader:
             self.overwrite = False
 
         if ready == "y":
-            grade = self.input_grade(max_points)
+            grade = self.input_grade(max_points, suggested)
             if grade == max_points:
                 comments = self.input_comments(random.choice(config.GOOD_JOB))
             else:
@@ -151,12 +151,17 @@ class Grader:
                     self.grades[student_id] = {'grade': grade,
                                                'comments': comments}
             else:
-                self.input_feedback(student_ids, max_points, prev_grade)
+                self.input_feedback(student_ids, max_points, suggested, prev_grade)
         elif ready != "n":
-            self.input_feedback(student_ids, max_points, prev_grade)
+            self.input_feedback(student_ids, max_points, suggested, prev_grade)
 
-    def input_grade(self, max_points):
-        grade = input("Grade (out of {}): ".format(max_points))
+    def input_grade(self, max_points, suggested):
+        if suggested is not None:
+            grade = input("Grade (out of {}) [{}]: ".format(max_points, suggested))
+            if grade == "":
+                grade = suggested
+        else:
+            grade = input("Grade (out of {}): ".format(max_points))
         try:
             grade_int = int(grade)
             if grade_int >= 0 and grade_int <= max_points:
@@ -165,7 +170,7 @@ class Grader:
             pass
 
         print("Please enter an integer between 0 and {}.".format(max_points))
-        return self.input_grade(max_points)
+        return self.input_grade(max_points, suggested)
 
     def input_comments(self, default=""):
         comments = input("Comments [{}]: ".format(default))
@@ -193,7 +198,7 @@ class Grader:
 
         try:
             sys.path.insert(0, '{}/Graders/{}'.format(os.getcwd(), pset_name))
-            PSGrader = __import__("ps1", globals(), locals(), ["Grader"], 0)
+            PSGrader = __import__(pset_name, globals(), locals(), ["Grader"], 0)
             with cd("./{}".format(pset_name)):
                 assignment_name = self.assignment['name']
                 assignment_id = self.assignment['id']
@@ -205,7 +210,7 @@ class Grader:
                     # Clear terminal screen
                     print('\x1b[2J\x1b[H')
 
-                    print('=' * 50)
+                    print("{}~".format("~=" * 40))
                     print()
                     print("Assignment: {} ({})".format(assignment_name, assignment_id))
                     print("Grading: {}".format(repo['name']))
@@ -230,14 +235,25 @@ class Grader:
                     if prev_grade is not None and self.overwrite is False:
                         continue
 
+                    suggested = None
                     try:
                         with cd("./{}".format(repo['name'])):
                             grader = PSGrader.Grader(repo)
+
                             print(grader.get_output())
+
+                            if hasattr(grader, 'sugg_points'):
+                                suggested = grader.sugg_points
+                                print("Suggested score: {}".format(suggested))
+
+                                if len(grader.explanations) > 0:
+                                    for expl in grader.explanations:
+                                        print(expl)
+
                     except OSError:
                         raise Exception("Directory did not exist, did repositories download?")
 
-                    self.input_feedback(student_ids, max_points, prev_grade)
+                    self.input_feedback(student_ids, max_points, suggested, prev_grade)
 
                     # Kill the grader process, if it's still running
                     grader.cleanup()
