@@ -118,13 +118,16 @@ class Grader:
         already_received = "This student has already received a {}. Do you wish to overwrite that?".format(prev_grade)
         if prev_grade is None:
             is_graded = False
-            ready = input("Do you wish to submit feedback? [Y/n] ").lower()
+            ready = input("Do you wish to submit feedback? [Y/n/end] ").lower()
         elif self.overwrite is True:
             is_graded = False
-            ready = input("{} [Y/n] ".format(already_received)).lower()
+            ready = input("{} [Y/n/end] ".format(already_received)).lower()
         else:
             is_graded = True
-            ready = input("{} [y/N/all/none] ".format(already_received)).lower()
+            ready = input("{} [y/N/all/none/end] ".format(already_received)).lower()
+
+        if ready == "end":
+            return False
 
         if ready == "":
             if is_graded:
@@ -151,9 +154,11 @@ class Grader:
                     self.grades[student_id] = {'grade': grade,
                                                'comments': comments}
             else:
-                self.input_feedback(student_ids, max_points, suggested, prev_grade)
+                return self.input_feedback(student_ids, max_points, suggested, prev_grade)
         elif ready != "n":
-            self.input_feedback(student_ids, max_points, suggested, prev_grade)
+            return self.input_feedback(student_ids, max_points, suggested, prev_grade)
+
+        return None
 
     def input_grade(self, max_points, suggested):
         if suggested is not None:
@@ -213,6 +218,7 @@ class Grader:
                     print("{}~".format("~=" * 40))
                     print()
                     print("Assignment: {} ({})".format(assignment_name, assignment_id))
+                    print("{} graded in current session".format(len(self.grades)))
                     print("Grading: {}".format(repo['name']))
                     print()
 
@@ -253,10 +259,14 @@ class Grader:
                     except OSError:
                         raise Exception("Directory did not exist, did repositories download?")
 
-                    self.input_feedback(student_ids, max_points, suggested, prev_grade)
+                    should_continue = self.input_feedback(student_ids, max_points, suggested, prev_grade)
 
                     # Kill the grader process, if it's still running
                     grader.cleanup()
+
+                    if should_continue is False:
+                        break
+
         except OSError:
             raise
 
