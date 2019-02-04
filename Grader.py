@@ -4,6 +4,7 @@ import os
 import errno
 import random
 import sys
+import readline
 
 from Students import Students
 from Downloader import Downloader
