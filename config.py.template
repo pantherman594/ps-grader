@@ -17,6 +17,9 @@ CANVAS_PREFIX = ""
 CANVAS_COURSE_NUM = ""
 CANVAS_API = "https://{}.instructure.com/api/v1/courses/{}/".format(CANVAS_PREFIX, CANVAS_COURSE_NUM)
 
+# Will report a file if 70% of a file matches another student's
+SIMILARITY_THRESHOLD = 0.7
+
 GOOD_JOB = [
     'Good job!',
     'Great work!',

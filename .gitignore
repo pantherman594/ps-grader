@@ -5,3 +5,5 @@ __pycache__/
 ps*
 students.*
 config.py
+
+*.class

@@ -5,6 +5,9 @@ import errno
 import random
 import sys
 import readline
+import editdistance
+import operator
+import subprocess
 
 from Students import Students
 from Downloader import Downloader
@@ -169,13 +172,13 @@ class Grader:
         else:
             grade = input("Grade (out of {}): ".format(max_points))
         try:
-            grade_int = int(grade)
-            if grade_int >= 0 and grade_int <= max_points:
-                return grade_int
+            grade_num = float(grade)
+            if grade_num >= 0 and grade_num <= max_points:
+                return grade_num
         except ValueError:
             pass
 
-        print("Please enter an integer between 0 and {}.".format(max_points))
+        print("Please enter an number between 0 and {}.".format(max_points))
         return self.input_grade(max_points, suggested)
 
     def input_comments(self, default=""):
@@ -208,7 +211,80 @@ class Grader:
             with cd("./{}".format(pset_name)):
                 assignment_name = self.assignment['name']
                 assignment_id = self.assignment['id']
-                max_points = int(self.assignment['points_possible'])
+                max_points = float(self.assignment['points_possible'])
+
+                if True:
+                    # Clear terminal screen
+                    print('\x1b[2J\x1b[H')
+
+                    print("{}~".format("~=" * 40))
+                    print()
+                    print("Assignment: {} ({})".format(assignment_name, assignment_id))
+                    print("Running similarity checker...")
+
+                    files = {}
+
+                    for repo in self.downloader.repositories:
+                        try:
+                            with cd("./{}/src".format(repo['name'])):
+                                for filename in os.listdir('.'):
+                                    if not filename.endswith(".java"):
+                                        continue
+
+                                    with open(filename, 'r') as f:
+                                        process = subprocess.Popen(["git", "diff", PSGrader.commit, filename], stdout=subprocess.PIPE)
+                                        contents = process.communicate()[0].decode("utf-8")
+
+                                        # contents = f.read()
+                                        if filename not in files:
+                                            files[filename] = {}
+                                        files[filename][repo['name']] = contents
+                        except OSError:
+                            print("Source folder does not exist.")
+
+                    similarity_pairs = {}
+
+                    for repo in self.downloader.repositories:
+                        print()
+                        print("Checking: {}".format(repo['name']))
+                        try:
+                            with cd("./{}/src".format(repo['name'])):
+                                for filename in os.listdir('.'):
+                                    # TODO: compare git diffs with PSGrader.commit
+                                    if not filename.endswith(".java"):
+                                        continue
+
+                                    contents = files[filename][repo['name']]
+                                    similar_files = {}
+
+                                    for other_repo, other_contents in files[filename].items():
+                                        if other_repo == repo['name']:
+                                            continue
+
+                                        distance = editdistance.eval(contents, other_contents)
+                                        similarity = (1 - (2 * distance / (len(contents) + len(other_contents))))
+                                        if similarity > config.SIMILARITY_THRESHOLD:
+                                            similar_files[other_repo] = similarity
+                                            pair = "{} - {}".format(repo['name'], other_repo)
+                                            pair2 = "{} - {}".format(other_repo, repo['name'])
+                                            if pair not in similarity_pairs and pair2 not in similarity_pairs:
+                                                similarity_pairs[pair] = similarity
+
+                                    if len(similar_files) > 0:
+                                        print("SIMILARITY EXCEEDED THRESHOLD")
+                                        sorted_similarities = sorted(similar_files.items(), key=operator.itemgetter(1), reverse=True)
+                                        print(sorted_similarities)
+                        except OSError:
+                            print("Source folder does not exist.")
+
+                    if len(similarity_pairs) > 0:
+                        print()
+                        sorted_similarities = sorted(similarity_pairs.items(), key=operator.itemgetter(1), reverse=True)
+                        print(sorted_similarities)
+
+
+                    print("Similarity checker complete.")
+                    input("Press ENTER to continue to grading.")
 
                 self.grades = {}
 

@@ -35,6 +35,18 @@ class Downloader:
         try:
             with cd("./{}".format(pset_name)):
                 self.repos = self.get_matching_repos(match_filter)
+
+                print()
+                try:
+                    with cd("./{}".format(pset_name)):
+                        print(pset_name, "already exists. Pulling changes...")
+                        subprocess.call(['git', 'pull'])
+                        subprocess.call(['git', 'reset', '--hard', 'origin/master'])
+                        subprocess.call(['git', 'clean', '-f', '-d', '-x'])
+                except OSError:
+                    print("Cloning {}...".format(pset_name))
+                    subprocess.call(['git', 'clone', 'https://github.com/BC-CSCI-1102-S19-TTh3/{}.git'.format(pset_name)])
+
                 for repo in self.repos:
                     self.repositories.append({
                         "name": repo['name'],
