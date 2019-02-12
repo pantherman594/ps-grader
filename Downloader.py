@@ -47,6 +47,9 @@ class Downloader:
                     print("Cloning {}...".format(pset_name))
                     subprocess.call(['git', 'clone', 'https://github.com/BC-CSCI-1102-S19-TTh3/{}.git'.format(pset_name)])
 
+                print()
+                update_repos = input("Update repositories? [y/N] ").lower() == 'y'
+                clean_repos = update_repos or input("Clean repositories? [y/N] ").lower() == 'y'
                 for repo in self.repos:
                     self.repositories.append({
                         "name": repo['name'],
@@ -54,14 +57,22 @@ class Downloader:
                     })
                     self.usernames.extend(repo['collaborators']['nodes'])
 
-                    print()
                     try:
                         with cd("./{}".format(repo['name'])):
-                            print(repo['name'], "already exists. Pulling changes...")
-                            subprocess.call(['git', 'pull'])
-                            subprocess.call(['git', 'reset', '--hard', 'origin/master'])
-                            subprocess.call(['git', 'clean', '-f', '-d', '-x'])
+                            if update_repos is True:
+                                print()
+                                print(repo['name'], "already exists. Pulling changes...")
+                                subprocess.call(['git', 'pull'])
+
+                            if clean_repos is True:
+                                if update_repos is not True:
+                                    print()
+                                    print(repo['name'], "already exists. Resetting changes...")
+
+                                subprocess.call(['git', 'reset', '--hard', 'origin/master'])
+                                subprocess.call(['git', 'clean', '-f', '-d', '-x'])
                     except OSError:
+                        print()
                         print("Cloning {}...".format(repo['name']))
                         subprocess.call(['git', 'clone', repo['sshUrl']])
         except OSError:

@@ -213,7 +213,8 @@ class Grader:
                 assignment_id = self.assignment['id']
                 max_points = float(self.assignment['points_possible'])
 
-                if True:
+                print()
+                if input("Run similarity checker? [y/N] ").lower() == 'y':
                     # Clear terminal screen
                     print('\x1b[2J\x1b[H')
 
