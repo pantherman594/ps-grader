@@ -151,6 +151,9 @@ class Grader:
                 comments = self.input_comments(random.choice(config.GOOD_JOB))
             else:
                 comments = self.input_comments()
+            print("=====")
+            print(comments)
+            print("=====")
 
             confirm = input("Does the above look OK? [Y/n] ").lower()
             if confirm == "y" or confirm == "":
@@ -182,9 +185,13 @@ class Grader:
         return self.input_grade(max_points, suggested)
 
     def input_comments(self, default=""):
+        commentLines = []
         comments = input("Comments [{}]: ".format(default))
-        if comments != "":
-            return comments
+        while comments != "":
+            commentLines.append(comments)
+            comments = input("> ")
+        if len(commentLines) > 0:
+            return "\n".join(commentLines)
         if default != "":
             return default
 
@@ -263,7 +270,12 @@ class Grader:
                                             continue
 
                                         distance = editdistance.eval(contents, other_contents)
-                                        similarity = (1 - (2 * distance / (len(contents) + len(other_contents))))
+                                        total_length = len(contents) + len(other_contents)
+
+                                        if total_length == 0:
+                                            continue
+
+                                        similarity = (1 - (2 * distance / total_length))
                                         if similarity > config.SIMILARITY_THRESHOLD:
                                             similar_files[other_repo] = similarity
                                             pair = "{} - {}".format(repo['name'], other_repo)
