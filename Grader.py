@@ -221,6 +221,9 @@ class Grader:
                 max_points = float(self.assignment['points_possible'])
 
                 print()
+                if input("Shuffle repository order? [Y/n] ").lower() != 'n':
+                    random.shuffle(self.downloader.repositories)
+
                 if input("Run similarity checker? [y/N] ").lower() == 'y':
                     # Clear terminal screen
                     print('\x1b[2J\x1b[H')
@@ -231,6 +234,7 @@ class Grader:
                     print("Running similarity checker...")
 
                     files = {}
+                    print(PSGrader.commit)
 
                     for repo in self.downloader.repositories:
                         try:
@@ -239,8 +243,9 @@ class Grader:
                                     if not filename.endswith(".java"):
                                         continue
 
+                                    print(filename)
                                     with open(filename, 'r') as f:
-                                        process = subprocess.Popen(["git", "diff", PSGrader.commit, filename], stdout=subprocess.PIPE)
+                                        process = subprocess.Popen(["diff", filename, "../../{}/src/{}".format(pset_name, filename)], stdout=subprocess.PIPE)
                                         contents = process.communicate()[0].decode("utf-8")
 
                                         # contents = f.read()
