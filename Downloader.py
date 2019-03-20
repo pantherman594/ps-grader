@@ -78,13 +78,13 @@ class Downloader:
         except OSError:
             raise
 
-    def get_last_member_cursor(self):
+    def get_members(self):
         query = {'query': "\n".join([
             'query {',
             '  organization(login: "{}") {{'.format(config.ORGANIZATION),
-            '    membersWithRole(last: 1) {',
-            '      edges {',
-            '        cursor',
+            '    membersWithRole(first: 100) {',
+            '      nodes {',
+            '        login',
             '      }',
             '    }',
             '  }',
@@ -111,9 +111,9 @@ class Downloader:
             print("No data returned")
             raise SystemExit
 
-        return data['data']['organization']['membersWithRole']['edges'][0]['cursor']
+        return [node['login'] for node in data['data']['organization']['membersWithRole']['nodes']]
 
-    def get_repos(self, last_member_cursor, after=None):
+    def get_repos(self, after=None):
         """
         In descending order, so the larger psets are near the front (ps8 > ps4
         alphabetically). Unfortunately this won't be effective beyond 9
@@ -130,7 +130,7 @@ class Downloader:
             '       node {',
             '         name',
             '         sshUrl',
-            '         collaborators(first: 100, after: "{}") {{'.format(last_member_cursor),
+            '         collaborators(first: 100) {',
             '           nodes {',
             '             name',
             '             login',
@@ -167,14 +167,14 @@ class Downloader:
         return data['data']['organization']['repositories']['edges']
 
     def get_matching_repos(self, match_filter):
-        last_member_cursor = self.get_last_member_cursor()
+        members = self.get_members()
         complete = False
         after = None
         matching = False
         matching_repos = []
 
         while not complete:
-            repos = self.get_repos(last_member_cursor, after)
+            repos = self.get_repos(after)
 
             if len(repos) is 0:
                 break
@@ -182,7 +182,12 @@ class Downloader:
             for repo in repos:
                 name = repo['node']['name']
                 after = repo['cursor']
-                if len(repo['node']['collaborators']['nodes']) is 0:
+
+                for i in range(len(repo['node']['collaborators']['nodes']) - 1, -1, -1):
+                    if repo['node']['collaborators']['nodes'][i]['login'] in members:
+                        del repo['node']['collaborators']['nodes'][i]
+
+                if len(repo['node']['collaborators']['nodes']) == 0:
                     continue
                 if match_filter.match(name) is not None:
                     matching = True
