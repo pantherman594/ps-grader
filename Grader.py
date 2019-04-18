@@ -310,9 +310,30 @@ class Grader:
                 self.grades = {}
 
                 for repo in self.downloader.repositories:
+                    student_ids = []
+                    for collaborator in repo['collaborators']:
+                        if collaborator['login'] in self.students.students:
+                            student_ids.append(self.students.students[collaborator['login']]['id'])
+                        else:
+                            print("Unable to give feedback to {} because this student hasn't been matched to Canvas.".format(collaborator['login']))
+                            input("Press ENTER to continue.")
+                    print(student_ids)
+
+                    if len(student_ids) is 0:
+                        if len(repo['collaborators']) is not 1:
+                            print("No gradeable students found.")
+                            input("Press ENTER to continue.")
+                        continue
+
+                    prev_grade = self.get_grade(student_ids[0])
+
+                    if prev_grade is not None and self.overwrite is False:
+                        continue
+
                     repeat = True
 
                     while repeat:
+                        repeat = False
                         # Clear terminal screen
                         print('\x1b[2J\x1b[H')
 
@@ -322,26 +343,6 @@ class Grader:
                         print("{} graded in current session".format(len(self.grades)))
                         print("Grading: {}".format(repo['name']))
                         print()
-
-                        student_ids = []
-                        for collaborator in repo['collaborators']:
-                            if collaborator['login'] in self.students.students:
-                                student_ids.append(self.students.students[collaborator['login']]['id'])
-                            else:
-                                print("Unable to give feedback to {} because this student hasn't been matched to Canvas.".format(collaborator['login']))
-                                input("Press ENTER to continue.")
-                        print(student_ids)
-
-                        if len(student_ids) is 0:
-                            if len(repo['collaborators']) is not 1:
-                                print("No gradeable students found.")
-                                input("Press ENTER to continue.")
-                            continue
-
-                        prev_grade = self.get_grade(student_ids[0])
-
-                        if prev_grade is not None and self.overwrite is False:
-                            continue
 
                         suggested = None
                         try:
