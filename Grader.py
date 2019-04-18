@@ -118,6 +118,10 @@ class Grader:
 
         return data[last_pset_index]
 
+    def input_repeat(self):
+        repeat = input("Repeat? [y/N] ").lower()
+        return repeat == "y"
+
     def input_feedback(self, student_ids, max_points, suggested, prev_grade):
         already_received = "This student has already received a {}. Do you wish to overwrite that?".format(prev_grade)
         if prev_grade is None:
@@ -243,7 +247,6 @@ class Grader:
                                     if not filename.endswith(".java"):
                                         continue
 
-                                    print(filename)
                                     with open(filename, 'r') as f:
                                         process = subprocess.Popen(["diff", filename, "../../{}/src/{}".format(pset_name, filename)], stdout=subprocess.PIPE)
                                         contents = process.communicate()[0].decode("utf-8")
@@ -307,52 +310,60 @@ class Grader:
                 self.grades = {}
 
                 for repo in self.downloader.repositories:
-                    # Clear terminal screen
-                    print('\x1b[2J\x1b[H')
+                    repeat = True
 
-                    print("{}~".format("~=" * 40))
-                    print()
-                    print("Assignment: {} ({})".format(assignment_name, assignment_id))
-                    print("{} graded in current session".format(len(self.grades)))
-                    print("Grading: {}".format(repo['name']))
-                    print()
+                    while repeat:
+                        # Clear terminal screen
+                        print('\x1b[2J\x1b[H')
 
-                    student_ids = []
-                    for collaborator in repo['collaborators']:
-                        if collaborator['login'] in self.students.students:
-                            student_ids.append(self.students.students[collaborator['login']]['id'])
-                        else:
-                            print("Unable to give feedback to {} because this student hasn't been matched to Canvas.".format(collaborator['login']))
-                            input("Press ENTER to continue.")
+                        print("{}~".format("~=" * 40))
+                        print()
+                        print("Assignment: {} ({})".format(assignment_name, assignment_id))
+                        print("{} graded in current session".format(len(self.grades)))
+                        print("Grading: {}".format(repo['name']))
+                        print()
 
-                    if len(student_ids) is 0:
-                        if len(repo['collaborators']) is not 1:
-                            print("No gradeable students found.")
-                            input("Press ENTER to continue.")
-                        continue
+                        student_ids = []
+                        for collaborator in repo['collaborators']:
+                            if collaborator['login'] in self.students.students:
+                                student_ids.append(self.students.students[collaborator['login']]['id'])
+                            else:
+                                print("Unable to give feedback to {} because this student hasn't been matched to Canvas.".format(collaborator['login']))
+                                input("Press ENTER to continue.")
+                        print(student_ids)
 
-                    prev_grade = self.get_grade(student_ids[0])
+                        if len(student_ids) is 0:
+                            if len(repo['collaborators']) is not 1:
+                                print("No gradeable students found.")
+                                input("Press ENTER to continue.")
+                            continue
 
-                    if prev_grade is not None and self.overwrite is False:
-                        continue
+                        prev_grade = self.get_grade(student_ids[0])
 
-                    suggested = None
-                    try:
-                        with cd("./{}".format(repo['name'])):
-                            grader = PSGrader.Grader(repo)
+                        if prev_grade is not None and self.overwrite is False:
+                            continue
 
-                            print(grader.get_output())
+                        suggested = None
+                        try:
+                            with cd("./{}".format(repo['name'])):
+                                grader = PSGrader.Grader(repo)
 
-                            if hasattr(grader, 'sugg_points'):
-                                suggested = grader.sugg_points
-                                print("Suggested score: {}".format(suggested))
+                                print(grader.get_output())
 
-                                if len(grader.explanations) > 0:
-                                    for expl in grader.explanations:
-                                        print(expl)
+                                if hasattr(grader, 'sugg_points'):
+                                    suggested = grader.sugg_points
+                                    print("Suggested score: {}".format(suggested))
 
-                    except OSError:
-                        raise Exception("Directory did not exist, did repositories download?")
+                                    if len(grader.explanations) > 0:
+                                        for expl in grader.explanations:
+                                            print(expl)
+
+                        except OSError:
+                            raise Exception("Directory did not exist, did repositories download?")
+
+                        repeat = self.input_repeat()
+                        if repeat:
+                            grader.cleanup()
 
                     should_continue = self.input_feedback(student_ids, max_points, suggested, prev_grade)
 

@@ -45,7 +45,7 @@ class Downloader:
                         subprocess.call(['git', 'clean', '-f', '-d', '-x'])
                 except OSError:
                     print("Cloning {}...".format(pset_name))
-                    subprocess.call(['git', 'clone', 'https://github.com/BC-CSCI-1102-S19-TTh3/{}.git'.format(pset_name)])
+                    subprocess.call(['git', 'clone', 'git@github.com:BC-CSCI-1102-S19-TTh3/{}.git'.format(pset_name)])
 
                 print()
                 update_repos = input("Update repositories? [y/N] ").lower() == 'y'
@@ -83,8 +83,11 @@ class Downloader:
             'query {',
             '  organization(login: "{}") {{'.format(config.ORGANIZATION),
             '    membersWithRole(first: 100) {',
-            '      nodes {',
-            '        login',
+            '      edges {',
+            '        role',
+            '        node {',
+            '          login',
+            '        }',
             '      }',
             '    }',
             '  }',
@@ -111,7 +114,7 @@ class Downloader:
             print("No data returned")
             raise SystemExit
 
-        return [node['login'] for node in data['data']['organization']['membersWithRole']['nodes']]
+        return [edge['node']['login'] for edge in data['data']['organization']['membersWithRole']['edges'] if edge['role'] == 'ADMIN']
 
     def get_repos(self, after=None):
         """
@@ -189,6 +192,7 @@ class Downloader:
 
                 if len(repo['node']['collaborators']['nodes']) == 0:
                     continue
+
                 if match_filter.match(name) is not None:
                     matching = True
                     matching_repos.append(repo['node'])
